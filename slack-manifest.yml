@@ -1,0 +1,37 @@
+# Create the app at https://api.slack.com/apps → Create New App → From a manifest.
+# Replace YOUR-DOMAIN with your Vercel URL (e.g. postmortem-xyz.vercel.app).
+display_information:
+  name: Postmortem
+  description: Turn incident threads into blameless postmortems in a minute.
+  background_color: "#0a0a0a"
+features:
+  bot_user:
+    display_name: Postmortem
+    always_online: true
+  slash_commands:
+    - command: /postmortem
+      url: https://YOUR-DOMAIN/api/slack/commands
+      description: Draft a postmortem from this channel's recent messages
+      usage_hint: "[hours] [context]  — or 'help'"
+      should_escape: false
+  shortcuts:
+    - name: Write postmortem
+      type: message
+      callback_id: write_postmortem
+      description: Draft a postmortem from this thread
+oauth_config:
+  scopes:
+    bot:
+      - commands
+      - chat:write
+      - channels:history
+      - groups:history
+      - users:read
+      - files:write
+settings:
+  interactivity:
+    is_enabled: true
+    request_url: https://YOUR-DOMAIN/api/slack/interactions
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false
