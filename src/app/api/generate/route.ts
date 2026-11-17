@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { generatePostmortem } from "@/lib/generate";
+import { generatePostmortem, provider } from "@/lib/generate";
 
 const Body = z.object({
   thread: z.string().min(50, "Paste at least a few lines of the incident thread").max(200_000),
@@ -7,8 +7,8 @@ const Body = z.object({
 });
 
 export async function POST(req: Request) {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return Response.json({ error: "Server is missing ANTHROPIC_API_KEY" }, { status: 500 });
+  if (!provider()) {
+    return Response.json({ error: "Server has no AI key configured (GEMINI_API_KEY or ANTHROPIC_API_KEY)" }, { status: 500 });
   }
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
