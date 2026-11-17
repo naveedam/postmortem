@@ -22,8 +22,8 @@ function Body() {
           {status === "cancelled" ? "You cancelled the install." : "Something went wrong. Please try again."}
         </p>
       )}
-      <a href={ok ? "/" : "/api/slack/install"} className="inline-block rounded-lg bg-emerald-500 text-zinc-950 font-medium px-4 py-2">
-        {ok ? "Back to home" : "Try again"}
+      <a href={ok ? "/app" : "/api/slack/install"} className="inline-block rounded-lg bg-emerald-500 text-zinc-950 font-medium px-4 py-2">
+        {ok ? "Open your dashboard" : "Try again"}
       </a>
     </div>
   );

@@ -97,7 +97,8 @@ export default function Landing() {
           <nav className="flex items-center gap-6 text-sm text-zinc-400">
             <a href="#how" className="hidden sm:inline hover:text-white">How it works</a>
             <a href="#pricing" className="hidden sm:inline hover:text-white">Pricing</a>
-            <a href="/try" className="hover:text-white">Try without Slack</a>
+            <a href="/try" className="hidden md:inline hover:text-white">Try without Slack</a>
+            <a href="/app" className="hover:text-white">Sign in</a>
             <a href={SLACK_INSTALL} className="rounded-md bg-white text-zinc-900 font-medium px-3 py-1.5 hover:bg-zinc-200">Add to Slack</a>
           </nav>
         </div>

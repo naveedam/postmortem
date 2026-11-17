@@ -5,7 +5,10 @@
     "background_color": "#0a0a0a"
   },
   "features": {
-    "bot_user": { "display_name": "Afterwatch", "always_online": true },
+    "bot_user": {
+      "display_name": "Afterwatch",
+      "always_online": true
+    },
     "slash_commands": [
       {
         "command": "/postmortem",
@@ -25,11 +28,25 @@
     ]
   },
   "oauth_config": {
-    "redirect_urls": ["https://postmortem-gilt.vercel.app/api/slack/oauth"],
-    "scopes": { "bot": ["commands", "chat:write", "channels:history", "groups:history", "users:read"] }
+    "redirect_urls": [
+      "https://postmortem-gilt.vercel.app/api/slack/oauth",
+      "https://postmortem-gilt.vercel.app/api/auth/slack/callback"
+    ],
+    "scopes": {
+      "bot": [
+        "commands",
+        "chat:write",
+        "channels:history",
+        "groups:history",
+        "users:read"
+      ]
+    }
   },
   "settings": {
-    "interactivity": { "is_enabled": true, "request_url": "https://postmortem-gilt.vercel.app/api/slack/interactions" },
+    "interactivity": {
+      "is_enabled": true,
+      "request_url": "https://postmortem-gilt.vercel.app/api/slack/interactions"
+    },
     "org_deploy_enabled": false,
     "socket_mode_enabled": false,
     "token_rotation_enabled": false

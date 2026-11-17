@@ -25,6 +25,10 @@ function PostmortemPage() {
   useEffect(() => {
     fetch(`/api/p/${slug}`)
       .then(async (r) => {
+        if (r.status === 401) {
+          window.location.href = `/api/auth/slack/login?next=${encodeURIComponent(`/p/${slug}`)}`;
+          return;
+        }
         if (!r.ok) throw new Error();
         const d: Doc = await r.json();
         setDoc(d);
@@ -53,7 +57,7 @@ function PostmortemPage() {
   }
 
   if (status === "loading") return <Shell><p className="text-zinc-500">Loading…</p></Shell>;
-  if (status === "missing") return <Shell><p className="text-zinc-400">This postmortem doesn't exist or the link is wrong.</p></Shell>;
+  if (status === "missing") return <Shell><p className="text-zinc-400">This postmortem doesn't exist, or it belongs to a different Slack workspace than the one you're signed in to.</p></Shell>;
 
   const dirty = md !== doc?.markdown && status !== "saved";
 
@@ -75,7 +79,7 @@ function PostmortemPage() {
       }
     >
       <p className="text-xs text-zinc-500 mb-6">
-        AI-drafted {new Date(doc!.created_at).toLocaleString()} · anyone with this link can view and edit
+        AI-drafted {new Date(doc!.created_at).toLocaleString()} · visible to your Slack workspace only
       </p>
       {mode === "edit" ? (
         <textarea
@@ -96,7 +100,10 @@ function Shell({ children, actions }: { children: React.ReactNode; actions?: Rea
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
-        <a href="/" className="font-semibold tracking-tight">Afterwatch</a>
+        <div className="flex items-center gap-5">
+          <a href="/app" className="font-semibold tracking-tight">after<span className="text-emerald-400">watch</span></a>
+          <a href="/app" className="text-sm text-zinc-400 hover:text-white">← All postmortems</a>
+        </div>
         {actions}
       </header>
       <div className="max-w-3xl mx-auto px-6 py-10">{children}</div>
