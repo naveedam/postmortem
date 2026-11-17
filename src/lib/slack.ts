@@ -64,8 +64,24 @@ export function slack(teamId: string) {
     return lines.join("\n");
   }
 
-  // Keep alert bots (PagerDuty etc.) but drop our own posts so drafts don't feed into the next draft.
-  const notOurs = (m: Msg & { app_id?: string }) => !(m.app_id && m.app_id === process.env.SLACK_APP_ID);
+  // Keep alert bots (PagerDuty etc.) but drop everything our own bot posted, so old drafts never feed the next one.
+  let self: { userId: string; botId: string } | null = null;
+  async function whoAmI() {
+    if (!self) {
+      const r = await call<{ user_id: string; bot_id: string }>("auth.test", {});
+      self = { userId: r.user_id, botId: r.bot_id };
+    }
+    return self;
+  }
+  async function dropOwn(messages: (Msg & { app_id?: string })[]) {
+    const me = await whoAmI();
+    return messages.filter(
+      (m) =>
+        m.user !== me.userId &&
+        m.bot_id !== me.botId &&
+        !(m.app_id && m.app_id === process.env.SLACK_APP_ID),
+    );
+  }
 
   return {
     async fetchThread(channel: string, threadTs: string): Promise<string> {
@@ -80,13 +96,13 @@ export function slack(teamId: string) {
         all.push(...r.messages);
         cursor = r.response_metadata?.next_cursor || undefined;
       } while (cursor && all.length < 2000);
-      return format(all.filter(notOurs));
+      return format(await dropOwn(all));
     },
 
     async fetchChannel(channel: string, hours: number): Promise<string> {
       const oldest = String(Date.now() / 1000 - hours * 3600);
       const r = await call<{ messages: Msg[] }>("conversations.history", { channel, oldest, limit: "500" }, false);
-      return format(r.messages.filter(notOurs).reverse());
+      return format((await dropOwn(r.messages)).reverse());
     },
 
     postMessage: (channel: string, text: string, thread_ts?: string, blocks?: unknown[]) =>

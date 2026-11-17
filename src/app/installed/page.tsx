@@ -13,7 +13,7 @@ function Body() {
       <h1 className="text-2xl font-semibold">{ok ? `Installed in ${team ?? "your workspace"} 🎉` : "Install didn't complete"}</h1>
       {ok ? (
         <div className="text-zinc-400 space-y-2 text-sm">
-          <p>1. In your incident channel, type <code className="text-emerald-400">/invite @Postmortem</code></p>
+          <p>1. In your incident channel, type <code className="text-emerald-400">/invite @Afterwatch</code></p>
           <p>2. On any incident thread: hover a message → ⋮ More actions → <b>Write postmortem</b></p>
           <p>3. Or type <code className="text-emerald-400">/postmortem</code> to draft from the last 24h</p>
         </div>

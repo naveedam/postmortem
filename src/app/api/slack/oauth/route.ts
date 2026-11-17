@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { oauthAccess } from "@/lib/slack";
 import { appUrl, db } from "@/lib/db";
+import { encrypt } from "@/lib/crypto";
 
 /** Slack redirects here after the user approves the install. */
 export async function GET(req: Request) {
@@ -22,7 +23,7 @@ export async function GET(req: Request) {
       {
         team_id: r.team.id,
         team_name: r.team.name,
-        bot_token: r.access_token,
+        bot_token: encrypt(r.access_token),
         bot_user_id: r.bot_user_id,
         installed_by: r.authed_user?.id ?? null,
       },

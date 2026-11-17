@@ -56,7 +56,7 @@ export async function runPostmortem({ teamId, channel, user, threadTs, hours = 2
   } catch (e) {
     console.error("postmortem job failed", e);
     const msg = e instanceof Error && e.message.includes("not_in_channel")
-      ? "I'm not in this channel yet. Invite me with `/invite @Postmortem` and try again."
+      ? "I'm not in this channel yet. Invite me with `/invite @Afterwatch` and try again."
       : "Sorry — I couldn't generate the postmortem. Please try again.";
     await s.postEphemeral(channel, user, msg, threadTs).catch(() => {});
   }

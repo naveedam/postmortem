@@ -16,7 +16,7 @@ export async function POST(req: Request) {
   if (text === "help") {
     return Response.json({
       response_type: "ephemeral",
-      text: "*Postmortem*\n• `/postmortem` — draft from this channel's last 24h\n• `/postmortem 6 checkout outage, SEV2` — last 6h plus context\n• For one thread: hover a message → ⋮ More actions → *Write postmortem*",
+      text: "*Afterwatch*\n• `/postmortem` — draft from this channel's last 24h\n• `/postmortem 6 checkout outage, SEV2` — last 6h plus context\n• For one thread: hover a message → ⋮ More actions → *Write postmortem*",
     });
   }
   const m = text.match(/^(\d{1,3})\s*h?\b\s*(.*)$/i);

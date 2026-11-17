@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
+import { decrypt } from "./crypto";
 
 let client: SupabaseClient | null = null;
 export function db(): SupabaseClient | null {
@@ -22,7 +23,7 @@ export async function botToken(teamId?: string): Promise<string> {
   const d = db();
   if (d && teamId) {
     const { data } = await d.from("workspaces").select("bot_token").eq("team_id", teamId).maybeSingle();
-    if (data?.bot_token) return data.bot_token;
+    if (data?.bot_token) return decrypt(data.bot_token);
   }
   if (process.env.SLACK_BOT_TOKEN) return process.env.SLACK_BOT_TOKEN;
   throw new Error("No Slack token for this workspace — reinstall the app");

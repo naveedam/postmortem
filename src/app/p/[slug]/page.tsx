@@ -96,7 +96,7 @@ function Shell({ children, actions }: { children: React.ReactNode; actions?: Rea
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
-        <a href="/" className="font-semibold tracking-tight">Postmortem<span className="text-emerald-400">.</span></a>
+        <a href="/" className="font-semibold tracking-tight">Afterwatch</a>
         {actions}
       </header>
       <div className="max-w-3xl mx-auto px-6 py-10">{children}</div>

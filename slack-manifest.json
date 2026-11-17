@@ -1,11 +1,11 @@
 {
   "display_information": {
-    "name": "Postmortem",
+    "name": "Afterwatch",
     "description": "Turn incident threads into blameless postmortems in a minute.",
     "background_color": "#0a0a0a"
   },
   "features": {
-    "bot_user": { "display_name": "Postmortem", "always_online": true },
+    "bot_user": { "display_name": "Afterwatch", "always_online": true },
     "slash_commands": [
       {
         "command": "/postmortem",
