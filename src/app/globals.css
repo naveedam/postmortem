@@ -22,3 +22,16 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Rendered postmortem */
+.pm-prose { line-height: 1.7; color: #e4e4e7; }
+.pm-prose h1 { font-size: 1.9rem; font-weight: 700; line-height: 1.25; margin-bottom: 1rem; color: #fff; }
+.pm-prose h2 { font-size: 1.15rem; font-weight: 600; margin: 2rem 0 .6rem; color: #fff; border-bottom: 1px solid #27272a; padding-bottom: .35rem; }
+.pm-prose p { margin: .5rem 0; }
+.pm-prose ul { list-style: disc; padding-left: 1.4rem; margin: .5rem 0; }
+.pm-prose li { margin: .2rem 0; }
+.pm-prose strong { color: #fff; }
+.pm-prose code { background: #18181b; padding: .1rem .35rem; border-radius: 4px; font-size: .9em; }
+.pm-prose table { width: 100%; border-collapse: collapse; margin: .75rem 0; font-size: .92rem; }
+.pm-prose th, .pm-prose td { border: 1px solid #27272a; padding: .45rem .6rem; text-align: left; vertical-align: top; }
+.pm-prose th { background: #18181b; font-weight: 600; }

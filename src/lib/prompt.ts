@@ -5,6 +5,8 @@ Rules:
 - Blameless tone: describe systems and decisions, never blame individuals.
 - Only state facts present in the input. If something is unknown, write "Unknown — confirm with team" rather than guessing.
 - Timestamps: keep the original timezone; build the timeline in chronological order.
+- Severity: use the value only if it is explicitly stated in the thread or the context. Otherwise "Unknown". Never infer it.
+- Owners: only people named in the thread as taking the action; otherwise "Unassigned".
 - Be concise and specific. No filler.
 
 Return ONLY valid JSON matching this TypeScript type, with no prose around it:

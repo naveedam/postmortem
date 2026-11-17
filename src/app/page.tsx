@@ -53,7 +53,10 @@ export default function Home() {
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
         <span className="font-semibold tracking-tight">Postmortem<span className="text-emerald-400">.</span></span>
-        <span className="text-xs text-zinc-500">Incident thread → blameless postmortem in under a minute</span>
+        <div className="flex items-center gap-4">
+          <span className="hidden md:inline text-xs text-zinc-500">Incident thread → blameless postmortem in under a minute</span>
+          <a href="/api/slack/install" className="rounded-md bg-white text-zinc-900 text-sm font-medium px-3 py-1.5 hover:bg-zinc-200">Add to Slack</a>
+        </div>
       </header>
 
       <div className="grid lg:grid-cols-2 gap-6 p-6">

@@ -2,16 +2,14 @@ import { after } from "next/server";
 import { verifySlack } from "@/lib/slack";
 import { runPostmortem } from "@/lib/run";
 
-/**
- * /postmortem [hours] [extra context]
- * Summarises the channel's last N hours (default 24). Use the message shortcut for a single thread.
- */
+/** /postmortem [hours] [extra context]  — drafts from the channel's last N hours (default 24). */
 export async function POST(req: Request) {
   const raw = await req.text();
   if (!verifySlack(raw, req.headers.get("x-slack-request-timestamp"), req.headers.get("x-slack-signature"))) {
     return new Response("invalid signature", { status: 401 });
   }
   const p = new URLSearchParams(raw);
+  const teamId = p.get("team_id")!;
   const channel = p.get("channel_id")!;
   const user = p.get("user_id")!;
   const text = (p.get("text") ?? "").trim();
@@ -25,7 +23,7 @@ export async function POST(req: Request) {
   const hours = m ? Math.min(Number(m[1]), 168) : 24;
   const context = m ? m[2] : text;
 
-  after(() => runPostmortem({ channel, user, hours, context }));
+  after(() => runPostmortem({ teamId, channel, user, hours, context }));
   return Response.json({
     response_type: "ephemeral",
     text: `:hourglass_flowing_sand: Writing a postmortem from the last ${hours}h of this channel. I'll post it here in about a minute.`,

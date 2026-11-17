@@ -1,32 +1,63 @@
 import { generatePostmortem } from "./generate";
 import { toMarkdown } from "./prompt";
-import { fetchChannel, fetchThread, postEphemeral, postMessage, uploadFile } from "./slack";
+import { slack } from "./slack";
+import { appUrl, db, newSlug, usage } from "./db";
 
-type Job = { channel: string; user: string; threadTs?: string; hours?: number; context?: string };
+type Job = { teamId: string; channel: string; user: string; threadTs?: string; hours?: number; context?: string };
 
-/** Fetch Slack conversation → generate postmortem → post summary + .md file back. */
-export async function runPostmortem({ channel, user, threadTs, hours = 24, context = "" }: Job) {
+/** Fetch Slack conversation → generate → save → post summary with a link back to the full postmortem. */
+export async function runPostmortem({ teamId, channel, user, threadTs, hours = 24, context = "" }: Job) {
+  const s = slack(teamId);
   try {
-    const transcript = threadTs ? await fetchThread(channel, threadTs) : await fetchChannel(channel, hours);
-    if (transcript.length < 50) {
-      await postEphemeral(channel, user, "Not enough conversation to write a postmortem from.", threadTs);
+    const quota = await usage(teamId);
+    if (!quota.ok) {
+      await s.postEphemeral(
+        channel, user,
+        `You've used all ${quota.limit} free postmortems this month. Upgrade for unlimited: ${appUrl()}/#pricing`,
+        threadTs,
+      );
       return;
     }
+
+    const transcript = threadTs ? await s.fetchThread(channel, threadTs) : await s.fetchChannel(channel, hours);
+    if (transcript.length < 50) {
+      await s.postEphemeral(channel, user, "Not enough conversation to write a postmortem from.", threadTs);
+      return;
+    }
+
     const pm = await generatePostmortem(transcript, context);
-    const md = toMarkdown(pm);
+    const markdown = toMarkdown(pm);
+    const slug = newSlug();
+    const d = db();
+    if (d) {
+      const { error } = await d.from("postmortems").insert({
+        slug, team_id: teamId, channel_id: channel, thread_ts: threadTs ?? null, created_by: user,
+        title: pm.title, severity: pm.severity, data: pm, markdown,
+      });
+      if (error) console.error("save failed", error);
+    }
+    const link = `${appUrl()}/p/${slug}`;
+
     const actions = pm.actionItems.slice(0, 5).map((a) => `• *${a.priority}* ${a.action} — _${a.owner}_`).join("\n");
-    const summary =
-      `*:memo: Postmortem draft: ${pm.title}* (${pm.severity})\n\n${pm.summary}\n\n` +
-      `*Root cause:* ${pm.rootCause}\n\n` +
-      (actions ? `*Action items:*\n${actions}\n\n` : "") +
-      `_Full postmortem attached. Requested by <@${user}>. Review before sharing — AI draft._`;
-    const slug = pm.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 60) || "postmortem";
-    await uploadFile(channel, `${slug}.md`, md, `Postmortem: ${pm.title}`, threadTs, summary);
+    const fallback = `Postmortem draft: ${pm.title}`;
+    await s.postMessage(channel, fallback, threadTs, [
+      { type: "header", text: { type: "plain_text", text: `📝 ${pm.title}`.slice(0, 150) } },
+      { type: "context", elements: [{ type: "mrkdwn", text: `*Severity:* ${pm.severity}  ·  Requested by <@${user}>  ·  AI draft — review before sharing` }] },
+      { type: "section", text: { type: "mrkdwn", text: pm.summary.slice(0, 2900) } },
+      { type: "section", text: { type: "mrkdwn", text: `*Root cause*\n${pm.rootCause}`.slice(0, 2900) } },
+      ...(actions ? [{ type: "section", text: { type: "mrkdwn", text: `*Action items*\n${actions}`.slice(0, 2900) } }] : []),
+      ...(d
+        ? [{
+            type: "actions",
+            elements: [{ type: "button", style: "primary", text: { type: "plain_text", text: "Open full postmortem" }, url: link }],
+          }]
+        : []),
+    ]);
   } catch (e) {
     console.error("postmortem job failed", e);
     const msg = e instanceof Error && e.message.includes("not_in_channel")
       ? "I'm not in this channel yet. Invite me with `/invite @Postmortem` and try again."
       : "Sorry — I couldn't generate the postmortem. Please try again.";
-    await postEphemeral(channel, user, msg, threadTs).catch(() => postMessage(channel, msg, threadTs).catch(() => {}));
+    await s.postEphemeral(channel, user, msg, threadTs).catch(() => {});
   }
 }

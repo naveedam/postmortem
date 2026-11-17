@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { botToken } from "./db";
 
 const API = "https://slack.com/api";
 
@@ -13,96 +14,110 @@ export function verifySlack(rawBody: string, timestamp: string | null, signature
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-async function call<T = Record<string, unknown>>(method: string, params: Record<string, unknown>, json = true): Promise<T> {
-  const token = process.env.SLACK_BOT_TOKEN!;
-  const res = json
-    ? await fetch(`${API}/${method}`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json; charset=utf-8" },
-        body: JSON.stringify(params),
-      })
-    : await fetch(`${API}/${method}?${new URLSearchParams(params as Record<string, string>)}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-  const data = await res.json();
-  if (!data.ok) throw new Error(`Slack ${method}: ${data.error}`);
-  return data as T;
-}
-
-type Msg = { ts: string; user?: string; bot_id?: string; username?: string; text?: string };
-
-const userCache = new Map<string, string>();
-async function userName(id?: string): Promise<string> {
-  if (!id) return "bot";
-  if (userCache.has(id)) return userCache.get(id)!;
-  try {
-    const r = await call<{ user: { profile?: { display_name?: string; real_name?: string }; name: string } }>(
-      "users.info", { user: id }, false,
-    );
-    const n = r.user.profile?.display_name || r.user.profile?.real_name || r.user.name;
-    userCache.set(id, n);
-    return n;
-  } catch {
-    return id;
+/** Slack Web API client bound to one workspace. */
+export function slack(teamId: string) {
+  async function call<T = Record<string, unknown>>(method: string, params: Record<string, unknown>, json = true): Promise<T> {
+    const token = await botToken(teamId);
+    const res = json
+      ? await fetch(`${API}/${method}`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json; charset=utf-8" },
+          body: JSON.stringify(params),
+        })
+      : await fetch(`${API}/${method}?${new URLSearchParams(params as Record<string, string>)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+    const data = await res.json();
+    if (!data.ok) throw new Error(`Slack ${method}: ${data.error}`);
+    return data as T;
   }
-}
 
-async function format(messages: Msg[]): Promise<string> {
-  const lines: string[] = [];
-  for (const m of messages) {
-    const t = new Date(Number(m.ts) * 1000).toISOString().replace("T", " ").slice(0, 19) + "Z";
-    const who = m.user ? await userName(m.user) : m.username || "bot";
-    // Replace <@U123> mentions with names
-    let text = m.text ?? "";
-    for (const id of text.match(/<@([A-Z0-9]+)>/g) ?? []) {
-      text = text.replace(id, "@" + (await userName(id.slice(2, -1))));
+  type Msg = { ts: string; user?: string; bot_id?: string; username?: string; text?: string };
+  const names = new Map<string, string>();
+
+  async function userName(id?: string): Promise<string> {
+    if (!id) return "bot";
+    if (names.has(id)) return names.get(id)!;
+    try {
+      const r = await call<{ user: { profile?: { display_name?: string; real_name?: string }; name: string } }>(
+        "users.info", { user: id }, false,
+      );
+      const n = r.user.profile?.display_name || r.user.profile?.real_name || r.user.name;
+      names.set(id, n);
+      return n;
+    } catch {
+      return id;
     }
-    lines.push(`[${t}] ${who}: ${text}`);
   }
-  return lines.join("\n");
+
+  async function format(messages: Msg[]): Promise<string> {
+    const lines: string[] = [];
+    for (const m of messages) {
+      const t = new Date(Number(m.ts) * 1000).toISOString().replace("T", " ").slice(0, 19) + "Z";
+      const who = m.user ? await userName(m.user) : m.username || "bot";
+      let text = m.text ?? "";
+      for (const tag of text.match(/<@([A-Z0-9]+)>/g) ?? []) {
+        text = text.replace(tag, "@" + (await userName(tag.slice(2, -1))));
+      }
+      lines.push(`[${t}] ${who}: ${text}`);
+    }
+    return lines.join("\n");
+  }
+
+  // Keep alert bots (PagerDuty etc.) but drop our own posts so drafts don't feed into the next draft.
+  const notOurs = (m: Msg & { app_id?: string }) => !(m.app_id && m.app_id === process.env.SLACK_APP_ID);
+
+  return {
+    async fetchThread(channel: string, threadTs: string): Promise<string> {
+      const all: Msg[] = [];
+      let cursor: string | undefined;
+      do {
+        const r = await call<{ messages: Msg[]; response_metadata?: { next_cursor?: string } }>(
+          "conversations.replies",
+          { channel, ts: threadTs, limit: "200", ...(cursor ? { cursor } : {}) },
+          false,
+        );
+        all.push(...r.messages);
+        cursor = r.response_metadata?.next_cursor || undefined;
+      } while (cursor && all.length < 2000);
+      return format(all.filter(notOurs));
+    },
+
+    async fetchChannel(channel: string, hours: number): Promise<string> {
+      const oldest = String(Date.now() / 1000 - hours * 3600);
+      const r = await call<{ messages: Msg[] }>("conversations.history", { channel, oldest, limit: "500" }, false);
+      return format(r.messages.filter(notOurs).reverse());
+    },
+
+    postMessage: (channel: string, text: string, thread_ts?: string, blocks?: unknown[]) =>
+      call("chat.postMessage", { channel, text, thread_ts, blocks, unfurl_links: false }),
+
+    postEphemeral: (channel: string, user: string, text: string, thread_ts?: string) =>
+      call("chat.postEphemeral", { channel, user, text, thread_ts }),
+  };
 }
 
-/** All messages in a thread (parent + replies). */
-export async function fetchThread(channel: string, threadTs: string): Promise<string> {
-  const all: Msg[] = [];
-  let cursor: string | undefined;
-  do {
-    const r = await call<{ messages: Msg[]; response_metadata?: { next_cursor?: string } }>(
-      "conversations.replies",
-      { channel, ts: threadTs, limit: "200", ...(cursor ? { cursor } : {}) },
-      false,
-    );
-    all.push(...r.messages);
-    cursor = r.response_metadata?.next_cursor || undefined;
-  } while (cursor && all.length < 2000);
-  return format(all);
-}
-
-/** Channel messages from the last `hours` hours, oldest first. */
-export async function fetchChannel(channel: string, hours: number): Promise<string> {
-  const oldest = String(Date.now() / 1000 - hours * 3600);
-  const r = await call<{ messages: Msg[] }>("conversations.history", { channel, oldest, limit: "500" }, false);
-  return format(r.messages.reverse());
-}
-
-export const postMessage = (channel: string, text: string, thread_ts?: string, blocks?: unknown[]) =>
-  call("chat.postMessage", { channel, text, thread_ts, blocks, unfurl_links: false });
-
-export const postEphemeral = (channel: string, user: string, text: string, thread_ts?: string) =>
-  call("chat.postEphemeral", { channel, user, text, thread_ts });
-
-/** Upload a text file into a channel/thread (files.getUploadURLExternal flow). */
-export async function uploadFile(channel: string, filename: string, content: string, title: string, thread_ts?: string, comment?: string) {
-  const bytes = Buffer.from(content, "utf8");
-  const { upload_url, file_id } = await call<{ upload_url: string; file_id: string }>(
-    "files.getUploadURLExternal", { filename, length: String(bytes.length) }, false,
-  );
-  const up = await fetch(upload_url, { method: "POST", body: bytes });
-  if (!up.ok) throw new Error(`Upload failed: ${up.status}`);
-  await call("files.completeUploadExternal", {
-    files: [{ id: file_id, title }],
-    channel_id: channel,
-    ...(thread_ts ? { thread_ts } : {}),
-    ...(comment ? { initial_comment: comment } : {}),
+/** Exchange an OAuth code for a bot token (Add to Slack flow). */
+export async function oauthAccess(code: string, redirectUri: string) {
+  const res = await fetch(`${API}/oauth.v2.access`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      code,
+      redirect_uri: redirectUri,
+      client_id: process.env.SLACK_CLIENT_ID!,
+      client_secret: process.env.SLACK_CLIENT_SECRET!,
+    }),
   });
+  const data = await res.json();
+  if (!data.ok) throw new Error(`oauth.v2.access: ${data.error}`);
+  return data as {
+    access_token: string;
+    bot_user_id: string;
+    app_id: string;
+    team: { id: string; name: string };
+    authed_user?: { id: string };
+  };
 }
+
+export const BOT_SCOPES = ["commands", "chat:write", "channels:history", "groups:history", "users:read"];
