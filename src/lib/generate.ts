@@ -27,18 +27,29 @@ export async function complete(system: string, user: string, json = false, maxTo
     text = msg.content.map((b) => (b.type === "text" ? b.text : "")).join("");
   } else {
     const model = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    const req = () => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY! },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: system }] },
         contents: [{ role: "user", parts: [{ text: user }] }],
-        generationConfig: { ...(json ? { responseMimeType: "application/json" } : {}), maxOutputTokens: maxTokens * 2, temperature: 0.2 },
+        generationConfig: {
+          ...(json ? { responseMimeType: "application/json" } : {}),
+          maxOutputTokens: maxTokens * 2 + 2048, // headroom: 2.5 models spend output tokens on "thinking"
+          temperature: 0.2,
+        },
       }),
     });
+    // Retry rate limits / overloads (free tier is strict) with backoff.
+    let res = await req();
+    for (let i = 0; i < 3 && (res.status === 429 || res.status >= 500); i++) {
+      await new Promise((r) => setTimeout(r, 1500 * 2 ** i));
+      res = await req();
+    }
     const data = await res.json();
     if (!res.ok) throw new Error(`Gemini ${res.status}: ${data?.error?.message ?? "request failed"}`);
     text = (data.candidates?.[0]?.content?.parts ?? []).map((x: { text?: string }) => x.text ?? "").join("");
+    if (!text.trim()) throw new Error(`Gemini returned no text (finishReason: ${data.candidates?.[0]?.finishReason ?? "unknown"})`);
   }
   if (!json) return text.trim();
   return JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1));
@@ -66,7 +77,7 @@ const CATCHUP_PROMPT = `You brief an engineer who just joined an incident channe
 Read the conversation and return ONLY JSON:
 {"status":"ongoing"|"mitigated"|"resolved"|"unclear","headline":string,"whatHappened":string[],"tried":string[],"people":[{"name":string,"role":string}],"nextSteps":string[],"openQuestions":string[]}
 Rules:
-- headline: one sentence, current state first ("Ongoing: checkout errors at 18% since 02:41 UTC").
+- headline: one sentence describing the current state, WITHOUT repeating the status word (it is shown separately). E.g. "Checkout errors at 18% since 02:41 UTC; rollback in progress."
 - whatHappened: 2-5 short bullets, chronological, with times when given.
 - tried: what has been attempted and its result.
 - people: who is actively working on it and what they are doing (only names in the thread).

@@ -23,7 +23,7 @@ export async function runCatchUp(ctx: Ctx) {
     const people = c.people?.length ? c.people.map((p) => `• *${p.name}*: ${p.role}`).join("\n") : "_Not clear from the thread_";
     await s.postEphemeral(ctx.channel, ctx.user, `Catch-up: ${c.headline}`, ctx.threadTs, [
       { type: "header", text: { type: "plain_text", text: "🧭 Catch-up (only visible to you)" } },
-      sec(`*${STATUS[c.status] ?? STATUS.unclear}*: ${c.headline}`),
+      sec(`*${STATUS[c.status] ?? STATUS.unclear}*: ${c.headline.replace(/^(ongoing|mitigated|resolved|unclear)\s*[:\-–]\s*/i, "")}`),
       sec(`*What happened*\n${bullets(c.whatHappened)}`),
       sec(`*Tried so far*\n${bullets(c.tried)}`),
       sec(`*Who's on it*\n${people}`),
@@ -46,7 +46,9 @@ export async function runStatusUpdate(ctx: Ctx) {
   try {
     const t = await transcript(ctx);
     if (t.length < 50) return void (await s.postEphemeral(ctx.channel, ctx.user, "Not enough conversation to draft an update yet.", ctx.threadTs));
-    const [exec, cust] = await Promise.all([generateUpdate(t, "executive", "live"), generateUpdate(t, "customer", "live")]);
+    // Sequential: two parallel calls trip free-tier rate limits.
+    const exec = await generateUpdate(t, "executive", "live");
+    const cust = await generateUpdate(t, "customer", "live");
     await s.postEphemeral(ctx.channel, ctx.user, "Status update drafts", ctx.threadTs, [
       { type: "header", text: { type: "plain_text", text: "📣 Status update drafts (only visible to you)" } },
       sec(`*For leadership*\n\`\`\`${exec.replace(/```/g, "'''")}\`\`\``),
@@ -55,6 +57,7 @@ export async function runStatusUpdate(ctx: Ctx) {
     ]);
   } catch (e) {
     console.error("status update failed", e);
-    await s.postEphemeral(ctx.channel, ctx.user, "Sorry, I couldn't draft an update. Please try again.", ctx.threadTs).catch(() => {});
+    const busy = e instanceof Error && /Gemini 429|rate|quota/i.test(e.message);
+    await s.postEphemeral(ctx.channel, ctx.user, busy ? "The AI service is busy right now. Please try again in a minute." : "Sorry, I couldn't draft an update. Please try again.", ctx.threadTs).catch(() => {});
   }
 }
