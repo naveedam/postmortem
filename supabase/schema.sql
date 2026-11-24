@@ -29,3 +29,5 @@ create index if not exists postmortems_team_created on postmortems (team_id, cre
 -- Server uses the service-role key only. RLS on with no policies = no public access via anon key.
 alter table workspaces  enable row level security;
 alter table postmortems enable row level security;
+
+-- v0.7 tables: see migration-002-actions.sql

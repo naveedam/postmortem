@@ -1,42 +1,47 @@
-# Morning setup — v0.5 (sign-in + dashboard)
+# Setup: v0.7 (Catch me up · Status updates · Action items)
 
 About 10 minutes.
 
 ## 1. Upload the code
-Unzip and upload everything over the `naveedam/postmortem` repo (GitHub → Add file → Upload files → drag the folder contents → Commit). Vercel deploys automatically.
+Unzip and upload everything over the `naveedam/postmortem` repo. Vercel deploys automatically.
+New files include `vercel.json` (the weekly reminder schedule). Make sure it's uploaded.
 
-## 2. Add one Vercel environment variable
-Settings → Environment Variables → Add:
+## 2. Run the database migration
+Supabase → SQL Editor → New query → paste `supabase/migration-002-actions.sql` → Run.
+This adds `action_items` and `workspace_settings`, and backfills action items from your existing postmortems.
 
+## 3. Add one Vercel environment variable
 | Key | Value |
 |---|---|
-| `SESSION_SECRET` | output of `openssl rand -base64 32` (run it again — must be different from `TOKEN_ENC_KEY`) |
-
-Save it in your password manager too. Changing it later just signs everyone out (harmless).
+| `CRON_SECRET` | output of `openssl rand -base64 32` |
 
 Then **Deployments → ⋯ → Redeploy**.
+Check **Settings → Cron Jobs** in Vercel: you should see `/api/cron/reminders`, Mondays 14:00 UTC (9 AM US Eastern).
 
-## 3. Update the Slack app manifest
+## 4. Update the Slack app manifest
 api.slack.com/apps → Afterwatch → **App Manifest** → JSON → paste `slack-manifest.json` → Save.
-(Adds the sign-in return URL `/api/auth/slack/callback`.)
+This adds two message shortcuts: **Catch me up** and **Draft status update**. No new permissions, so no reinstall needed.
 
-## 4. Test
-1. Open `https://postmortem-gilt.vercel.app/app` → you're sent to Slack → **Allow** → you land on the dashboard showing RizQ Labs, your name, "0 of 5 free this month" (or the real count) and your existing postmortems.
-2. Click a postmortem → it opens. Edit → Save works.
-3. Open the same postmortem link in a private/incognito window → it asks you to sign in (no longer public).
-4. In Slack, run **Write postmortem** on a new thread → the "Open full postmortem" button → opens after sign-in.
-5. Sign out (top right) → visiting `/app` asks you to sign in again.
+## 5. Test
+In Slack (on your incident test thread):
+1. ⋮ More actions → **Catch me up** → a private briefing appears (only you see it).
+2. ⋮ More actions → **Draft status update** → private drafts for leadership and customers.
+3. In a channel: `/postmortem catchup` and `/postmortem update` work channel-wide (last 6h by default; `/postmortem catchup 12` for 12h).
+4. In the channel where you want reminders: `/postmortem reminders here`.
 
-If sign-in shows "Something went wrong": Vercel → Logs, look for `signin failed`, send me the line.
+On afterwatch.dev:
+5. **/app → Action items** tab: existing items appear (from the backfill). Tick one done.
+6. **Settings** tab: connect Linear, GitHub or Jira → **Test connection** → **Save**.
+7. Back on Action items → **Create Linear issue** (or GitHub/Jira) → link appears; check the ticket exists.
+8. Open any postmortem → bottom: **Track action items** + **Stakeholder update** → pick an audience → Draft update.
 
-## What changed
-- **Sign in with Slack** (OpenID Connect) — no passwords. Only workspaces that installed Afterwatch can sign in.
-- **Postmortems are private to their workspace.** The old "anyone with the link" access is gone; someone from another workspace gets "not found".
-- **Dashboard at `/app`** — all postmortems, search by title, severity badges, free-plan usage meter.
-- Landing page has a **Sign in** link; the install success page now goes to the dashboard.
+To test the reminder without waiting for Monday, run from your Mac's Terminal:
+```
+curl -H "Authorization: Bearer YOUR_CRON_SECRET" https://afterwatch.dev/api/cron/reminders
+```
+It posts to the reminder channel only for items **older than 3 days**, and replies with `{"workspaces":N,"sent":N}`.
 
-## Still yours to decide before launch
-- Buy **afterwatch.dev** (or .app). Then update `APP_URL`, both Slack redirect URLs, slash-command URL and interactivity URL in the manifest, and the `hello@afterwatch.dev` contact address.
-- Switch Gemini to the **paid tier** (or use Claude) — the privacy page promises no training on customer data.
-- Payments (Stripe/Paddle) — when you're ready; the plan field and usage meter are already in place.
-- Slack app → **Manage Distribution → Activate Public Distribution** so other companies can install.
+## Notes
+- Catch-ups and status updates **don't count** toward the 5 free postmortems/month.
+- Tracker credentials are encrypted with the same `TOKEN_ENC_KEY` as Slack tokens.
+- Ticket status syncs back (closed ticket → action item done) each Monday before reminders go out.

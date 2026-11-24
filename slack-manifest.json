@@ -1,7 +1,7 @@
 {
   "display_information": {
     "name": "Afterwatch",
-    "description": "Turn incident threads into blameless postmortems in a minute.",
+    "description": "Incident catch-ups, status updates and blameless postmortems from your Slack threads.",
     "background_color": "#0a0a0a"
   },
   "features": {
@@ -12,9 +12,9 @@
     "slash_commands": [
       {
         "command": "/postmortem",
-        "url": "https://postmortem-gilt.vercel.app/api/slack/commands",
+        "url": "https://afterwatch.dev/api/slack/commands",
         "description": "Draft a postmortem from this channel's recent messages",
-        "usage_hint": "[hours] [context] or help",
+        "usage_hint": "[hours] [context] \u00b7 catchup \u00b7 update \u00b7 reminders here \u00b7 help",
         "should_escape": false
       }
     ],
@@ -24,11 +24,25 @@
         "type": "message",
         "callback_id": "write_postmortem",
         "description": "Draft a postmortem from this thread"
+      },
+      {
+        "name": "Catch me up",
+        "type": "message",
+        "callback_id": "catch_me_up",
+        "description": "Private summary of this incident thread so far"
+      },
+      {
+        "name": "Draft status update",
+        "type": "message",
+        "callback_id": "draft_status_update",
+        "description": "Draft updates for leadership and customers"
       }
     ]
   },
   "oauth_config": {
     "redirect_urls": [
+      "https://afterwatch.dev/api/slack/oauth",
+      "https://afterwatch.dev/api/auth/slack/callback",
       "https://postmortem-gilt.vercel.app/api/slack/oauth",
       "https://postmortem-gilt.vercel.app/api/auth/slack/callback"
     ],
@@ -45,7 +59,7 @@
   "settings": {
     "interactivity": {
       "is_enabled": true,
-      "request_url": "https://postmortem-gilt.vercel.app/api/slack/interactions"
+      "request_url": "https://afterwatch.dev/api/slack/interactions"
     },
     "org_deploy_enabled": false,
     "socket_mode_enabled": false,

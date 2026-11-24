@@ -1,6 +1,8 @@
 import { after } from "next/server";
 import { verifySlack } from "@/lib/slack";
 import { runPostmortem } from "@/lib/run";
+import { runCatchUp, runStatusUpdate } from "@/lib/live";
+import { saveSettings } from "@/lib/actions";
 
 /** /postmortem [hours] [extra context]  — drafts from the channel's last N hours (default 24). */
 export async function POST(req: Request) {
@@ -16,7 +18,32 @@ export async function POST(req: Request) {
   if (text === "help") {
     return Response.json({
       response_type: "ephemeral",
-      text: "*Afterwatch*\n• `/postmortem` — draft from this channel's last 24h\n• `/postmortem 6 checkout outage, SEV2` — last 6h plus context\n• For one thread: hover a message → ⋮ More actions → *Write postmortem*",
+      text: "*Afterwatch*\n• `/postmortem` — draft a postmortem from this channel's last 24h\n• `/postmortem 6 checkout outage, SEV2` — last 6h plus context\n• `/postmortem catchup [hours]` — private catch-up on this channel (default 6h)\n• `/postmortem update [hours]` — private status-update drafts for leadership and customers\n• `/postmortem reminders here` — post weekly open-action-item reminders in this channel (`off` / `on` too)\n• On a thread: hover a message → ⋮ More actions → *Write postmortem*, *Catch me up* or *Draft status update*",
+    });
+  }
+  const rem = text.match(/^reminders\s+(here|off|on)$/i);
+  if (rem) {
+    const mode = rem[1].toLowerCase();
+    try {
+      if (mode === "here") await saveSettings(teamId, { reminderChannel: channel, remindersEnabled: true });
+      else await saveSettings(teamId, { remindersEnabled: mode === "on" });
+    } catch {
+      return Response.json({ response_type: "ephemeral", text: "Couldn't save that setting. Please try again." });
+    }
+    const msg = mode === "here"
+      ? ":white_check_mark: Weekly action-item reminders will be posted in this channel (Mondays). Make sure @Afterwatch is in the channel."
+      : mode === "off" ? ":no_bell: Weekly action-item reminders are off." : ":bell: Weekly action-item reminders are on.";
+    return Response.json({ response_type: "ephemeral", text: msg });
+  }
+  const sub = text.match(/^(catchup|catch-up|update)\b\s*(\d{1,3})?/i);
+  if (sub) {
+    const h = Math.min(Number(sub[2] ?? 6), 72);
+    const ctx = { teamId, channel, user, hours: h };
+    const isCatch = sub[1].toLowerCase() !== "update";
+    after(() => (isCatch ? runCatchUp(ctx) : runStatusUpdate(ctx)));
+    return Response.json({
+      response_type: "ephemeral",
+      text: `:hourglass_flowing_sand: ${isCatch ? "Catching you up on" : "Drafting status updates from"} the last ${h}h of this channel…`,
     });
   }
   const m = text.match(/^(\d{1,3})\s*h?\b\s*(.*)$/i);

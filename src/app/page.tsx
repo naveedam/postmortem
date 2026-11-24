@@ -24,6 +24,9 @@ const features = [
   ["Action items with owners", "P0/P1/P2 follow-ups, assigned to whoever committed to them in the thread."],
   ["Works with your alerts", "PagerDuty, Opsgenie, Datadog and Grafana alert messages in the thread are read as part of the timeline."],
   ["Nothing to install", "A Slack app plus a web editor. No agents, no access to your infrastructure, no production credentials."],
+  ["Catch me up", "Joining mid-incident? Get a private 5-line briefing: status, what's been tried, who's on it."],
+  ["Status updates, drafted", "One click drafts updates for leadership and a customer-safe version for your status page."],
+  ["Action items that get done", "Push follow-ups to Jira, Linear or GitHub. Weekly Slack reminders until they're closed."],
   ["Private by design", "Read-only access to channels you invite it to. Tokens encrypted at rest. No training on your data."],
 ];
 
@@ -193,7 +196,7 @@ export default function Landing() {
 
       {/* Features */}
       <section className="max-w-6xl mx-auto px-6 pb-24">
-        <h2 className="text-3xl font-semibold tracking-tight">Written the way good postmortems are</h2>
+        <h2 className="text-3xl font-semibold tracking-tight">From the first alert to the last follow-up</h2>
         <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-x-10 gap-y-8">
           {features.map(([t, b]) => (
             <div key={t}>

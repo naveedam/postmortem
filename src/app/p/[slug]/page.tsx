@@ -4,6 +4,8 @@ import { Suspense, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import ActionList from "@/components/ActionList";
+import UpdatePanel from "@/components/UpdatePanel";
 
 type Doc = { title: string; severity: string; markdown: string; created_at: string; updated_at: string };
 
@@ -91,6 +93,16 @@ function PostmortemPage() {
         <article className="pm-prose">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{md}</ReactMarkdown>
         </article>
+      )}
+      {mode === "view" && (
+        <div className="mt-12 space-y-8">
+          <section>
+            <h2 className="font-medium mb-1">Track action items</h2>
+            <p className="text-sm text-zinc-500 mb-4">Tick them off here, or send them to your issue tracker.</p>
+            <ActionList slug={slug} status="all" showSource={false} />
+          </section>
+          <UpdatePanel slug={slug} />
+        </div>
       )}
     </Shell>
   );

@@ -108,8 +108,8 @@ export function slack(teamId: string) {
     postMessage: (channel: string, text: string, thread_ts?: string, blocks?: unknown[]) =>
       call("chat.postMessage", { channel, text, thread_ts, blocks, unfurl_links: false }),
 
-    postEphemeral: (channel: string, user: string, text: string, thread_ts?: string) =>
-      call("chat.postEphemeral", { channel, user, text, thread_ts }),
+    postEphemeral: (channel: string, user: string, text: string, thread_ts?: string, blocks?: unknown[]) =>
+      call("chat.postEphemeral", { channel, user, text, thread_ts, ...(blocks ? { blocks } : {}) }),
   };
 }
 

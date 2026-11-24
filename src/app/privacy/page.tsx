@@ -3,6 +3,7 @@ export const metadata = { title: "Privacy — Afterwatch" };
 const sections: [string, string][] = [
   ["What we access", "When you install Afterwatch in Slack, it can read messages only in channels it has been invited to, post messages, and look up user display names. It reads a conversation only when someone in your workspace runs Write postmortem or /postmortem."],
   ["What we store", "Your workspace ID and name, an encrypted bot token, and each finished postmortem (title, severity, content, channel and requesting user IDs). We do not store the raw Slack thread. For support and abuse prevention, Afterwatch staff can see workspace names, usage counts and postmortem titles, but not postmortem content."],
+  ["Issue trackers", "If you connect Jira, Linear or GitHub, the credentials you enter are encrypted at rest and used only to create tickets for action items you choose and to check whether those tickets are closed. Disconnecting removes them."],
   ["AI processing", "To write a postmortem, the conversation text is sent to our AI model provider for that single request. We use API terms under which your data is not used to train models."],
   ["Sharing", "We do not sell your data or share it with anyone except the infrastructure providers needed to run the service (hosting, database, AI model)."],
   ["Deletion", "Uninstalling the Slack app stops all access. Email us to delete your workspace and all its postmortems; we do so within 30 days."],

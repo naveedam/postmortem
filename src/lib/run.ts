@@ -2,6 +2,7 @@ import { generatePostmortem } from "./generate";
 import { toMarkdown } from "./prompt";
 import { slack } from "./slack";
 import { appUrl, db, newSlug, usage } from "./db";
+import { saveItems } from "./actions";
 
 type Job = { teamId: string; channel: string; user: string; threadTs?: string; hours?: number; context?: string };
 
@@ -30,11 +31,12 @@ export async function runPostmortem({ teamId, channel, user, threadTs, hours = 2
     const slug = newSlug();
     const d = db();
     if (d) {
-      const { error } = await d.from("postmortems").insert({
+      const { data: saved, error } = await d.from("postmortems").insert({
         slug, team_id: teamId, channel_id: channel, thread_ts: threadTs ?? null, created_by: user,
         title: pm.title, severity: pm.severity, data: pm, markdown,
-      });
+      }).select("id").single();
       if (error) console.error("save failed", error);
+      else await saveItems(teamId, saved.id, pm.actionItems);
     }
     const link = `${appUrl()}/p/${slug}`;
 
